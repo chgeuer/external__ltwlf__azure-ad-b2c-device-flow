@@ -1,6 +1,87 @@
-_Work in progress_...
+# Device Flow Authentication for Azure AD B2C
 
-# Device Flow Authentication
+## Component relations
+
+```mermaid
+flowchart LR
+  Browser --> DeviceProxy[Device Proxy]
+  Device -- show user code -.- User
+  User --- Browser
+  Browser-->AAD[Azure AD B2C]
+  DeviceProxy-->AAD
+  Device[Settop Box] --> DeviceProxy[Device Proxy]
+  DeviceProxy-->Redis[(Redis)]     
+  Device==>Application
+
+```
+
+
+
+
+
+## Interactions
+
+
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant Browser
+    participant Settop Box
+    participant Device Proxy
+    participant Redis
+    participant Azure AD B2C
+    participant Application
+    User --) Settop Box: Turn on
+    Settop Box ->> Device Proxy: Fetch Device Code
+    Device Proxy ->> Redis: Store user_code and device_code
+    Device Proxy ->> Settop Box: Code Response
+    Settop Box --) User: Display "user_code" and Message
+    activate Settop Box 
+    rect rgb(243,245,159)
+        Note over Settop Box, Device Proxy: Now the settop box continuously polls for status
+        loop Every 5 seconds
+            Settop Box ->> Device Proxy: Poll with device_code
+            Device Proxy ->> Redis: Check for token response
+            Device Proxy -->> Settop Box: Pending
+        end
+    end
+    rect rgb(248,203,173)
+        Note over User, Device Proxy: The user uses another device (browser, mobile) to perform the device login
+        User --> Browser: Open device logon page
+        Browser ->> Device Proxy: Supply user code
+        Device Proxy ->> Browser: Redirect to AAD
+        Browser ->> Azure AD B2C: Logon
+        Azure AD B2C ->> Browser: Redirect with back to Device Proxy
+        Browser ->> Device Proxy: Callback
+        Device Proxy ->> Azure AD B2C: Fetch access_token for device
+        Azure AD B2C ->> Device Proxy: Token response
+        Device Proxy ->> Redis: Update entry under device_code with token
+        Device Proxy --x Browser: Done
+        Browser --x User: Done
+    end
+    rect rgb(243,245,159)
+        Settop Box ->> Device Proxy: Poll with device_code
+        Device Proxy ->> Redis: Fetch access_token and refresh token
+        Device Proxy ->> Redis: Delete entry
+        Device Proxy ->> Settop Box: Return access_token and refresh_token
+        Settop Box ->> Settop Box: Store access_token and refresh_token
+        deactivate Settop Box
+    end
+    rect rgb(191,223,255)
+        Note right of Settop Box: Regular use of the access_token
+        Settop Box ->> Application: Use app with access_token
+    end
+    rect rgb(197,224,180)
+	    Note right of Settop Box: Refresh the tokens
+        Settop Box ->> Device Proxy: refresh_token
+        Device Proxy ->> Azure AD B2C: refresh (using the device proxy's client_secret)
+        Azure AD B2C ->> Device Proxy: refreshed access_token and refresh_token
+        Device Proxy ->> Settop Box: refreshed access_token and refresh_token
+	end
+```
+
+
 
 ## Example local config
 
@@ -107,7 +188,6 @@ Date: Wed, 30 Sep 2020 12:46:31 GMT
     "refresh_token":null,
     "scope":nul
 }
-
 ```
 
 ## Example custom user code page

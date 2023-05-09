@@ -1,0 +1,19 @@
+
+
+curl \
+    --silent \
+    --request POST \
+    --url "https://0rcs6z1l-7071.euw.devtunnels.ms/oauth/device_authorization" \
+    --header "Content-Type: application/x-www-form-urlencoded" \
+    --data "client_id=04b07795-8ddb-461a-bbee-02f9e1bf7b46" \
+    --data "scope=https://chgeuerb2cfasthack.onmicrosoft.com/videoapi/watch openid offline_access"
+
+###
+
+curl \
+    --silent \
+    --request POST \
+    --url "https://0rcs6z1l-7071.euw.devtunnels.ms/oauth/token" \
+    --data "grant_type=urn:ietf:params:oauth:grant-type:device_code" \
+    --data "client_id=d0350954-e28d-402b-b356-03115183d088" \
+    --data "device_code=55e31bea-fbb4-4c58-807f-8db491007775"
