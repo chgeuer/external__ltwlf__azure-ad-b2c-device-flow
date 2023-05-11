@@ -15,13 +15,7 @@ flowchart LR
 
 ```
 
-
-
-
-
 ## Interactions
-
-
 
 ```mermaid
 sequenceDiagram

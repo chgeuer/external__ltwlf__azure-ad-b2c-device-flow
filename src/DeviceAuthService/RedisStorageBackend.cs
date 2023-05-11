@@ -2,6 +2,8 @@
 
 using StackExchange.Redis;
 using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -73,17 +75,25 @@ public class RedisStorageBackend : IStorageBackend
         => muxer.GetDatabase().KeyDeleteAsync(key: $"{state.DeviceCode}:{state.UserCode}");
 }
 
-//public record StorageIdentifier(string DeviceCode, string UserCode, DateTimeOffset Expires);
-//public class InMemoryBackend : IStorageBackend
-//{
-//    private static ConcurrentDictionary<StorageIdentifier, AuthorizationState> _collection = new();
-//    public Task<bool> DeleteAsync(AuthorizationState state)
-//    {
-//        var x = _collection.FirstOrDefault(x => x.Key.UserCode == state.UserCode && x.Key.DeviceCode == state.DeviceCode);
-//        throw new NotImplementedException();
-//        //return Task.FromResult(_collection.TryRemove(state.GetStorageIdentifier(), out var _ignore));
-//    }
-//    public Task<AuthorizationState> GetGetAuthorizationStateByDeviceCode(string deviceCode) => throw new NotImplementedException();
-//    public Task<AuthorizationState> GetGetAuthorizationStateByUserCode(string userCode) => throw new NotImplementedException();
-//    public Task<bool> SetAuthorizationStateAsync(AuthorizationState state, int expiryInSeconds) => throw new NotImplementedException();
-//}
+/// <summary>
+/// Just a dummy storage backend for development.
+/// </summary>
+public class SingleInstanceInMemoryBackend : IStorageBackend
+{
+    private static ConcurrentDictionary<(string DeviceCode, string UserCode), AuthorizationState> _collection = new();
+
+    public Task<AuthorizationState> GetGetAuthorizationStateByDeviceCode(string deviceCode)
+        => Task.FromResult(_collection.SingleOrDefault(i => i.Key.DeviceCode == deviceCode).Value);
+
+    public Task<AuthorizationState> GetGetAuthorizationStateByUserCode(string userCode)
+        => Task.FromResult(_collection.SingleOrDefault(i => i.Key.UserCode == userCode).Value);
+
+    public Task<bool> SetAuthorizationStateAsync(AuthorizationState state) {
+        _collection.AddOrUpdate((state.DeviceCode, state.UserCode), state, (_key, _value) => state);
+
+        return Task.FromResult(true);
+    }
+
+    public Task<bool> DeleteAsync(AuthorizationState state)
+        => Task.FromResult(_collection.Remove((state.DeviceCode, state.UserCode), out var _));
+}

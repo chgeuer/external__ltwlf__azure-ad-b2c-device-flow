@@ -23,6 +23,13 @@ public class Startup : FunctionsStartup
             });
 
         var redisConfig = builder.GetContext().Configuration.GetValue<string>("Config:Redis");
-        builder.Services.AddSingleton<IStorageBackend>(new RedisStorageBackend(redisConfig));
+        if (!string.IsNullOrEmpty(redisConfig))
+        {
+            builder.Services.AddSingleton<IStorageBackend>(new RedisStorageBackend(redisConfig));
+        }
+        else
+        {
+            builder.Services.AddSingleton<IStorageBackend>(new SingleInstanceInMemoryBackend());
+        }
     }
 }
